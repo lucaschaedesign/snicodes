@@ -57,24 +57,36 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
   bool isStrikedThrough = false;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 170),
     );
+
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 180),
+    );
+
     _animation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeIn,
-    ); // Use Curves.easeInOut here
+      curve: Curves.easeInCubic,
+    );
+
+    _shakeAnimation = CurvedAnimation(
+      parent: _shakeController,
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -93,20 +105,37 @@ class _MyHomePageState extends State<MyHomePage>
                   isStrikedThrough = !isStrikedThrough;
                   if (isStrikedThrough) {
                     _controller.forward();
+                    Future.delayed(Duration(milliseconds: 170), () {
+                      _shakeController.forward();
+                    });
+                    Future.delayed(Duration(milliseconds: 350), () {
+                      _shakeController.reverse();
+                    });
                   } else {
                     _controller.reverse();
+                    _shakeController.forward();
+                    _shakeController.reverse();
                   }
+
+                  // _shakeController.repeat(reverse: true);
                 });
               },
-              child: CustomPaint(
-                painter: StrikethroughPainter(
-                    _animation), // Pass _animation instead of _controller
-                child: const Text(
-                  'Sample Text',
-                  style: TextStyle(
-                    fontSize: 24,
-                  ),
-                ),
+              child: AnimatedBuilder(
+                animation: _shakeAnimation,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_shakeAnimation.value * 8, 0),
+                    child: CustomPaint(
+                      painter: StrikethroughPainter(_animation),
+                      child: const Text(
+                        'Sample Text',
+                        style: TextStyle(
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -118,6 +147,32 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void dispose() {
     _controller.dispose();
+    _shakeController.dispose();
     super.dispose();
+  }
+}
+
+class StrikethroughPainter extends CustomPainter {
+  final Animation<double> animation; // Update the parameter type here
+
+  StrikethroughPainter(this.animation) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 2;
+
+    double strikeThroughWidth = size.width * animation.value;
+    canvas.drawLine(
+      Offset(0, size.height / 1.8),
+      Offset(strikeThroughWidth, size.height / 1.8),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
